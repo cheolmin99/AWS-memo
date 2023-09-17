@@ -1,0 +1,204 @@
+vpc를 만들고 인터넷 네트워크를 올리고 서브넷을 만들고 넷 게이트웨이까지 걸어주고
+보안그룹, 라우팅테이블을 만들고 ec2 만들어주고 로드벨런서까지 장착을 한 뒤
+데이터베이스까지 연동해주는것
+
+보안그룹에 ssh, http, https 등 도메인을 거는것임
+
+라우팅 테이블은 인터넷 게이트웨이랑 각각지역 내부망을 연결 해주는것이라 보면 됨.
+
+os는 ? 우분투?
+
+vpc를 만든 뒤 가상 네트워크를 구축 해야함
+
+
+
+
+기획 -> 데이터 베이스 구성 -> 개발 후 테스트-> aws 아키텍처 빌드 -> 
+git과 aws로 연동 후 테스트 -> 
+
+크게 4가지
+
+기획 , 데이터베이스 구성, 개발, 배포
+
+기획은 casting cloud 메모장 참고.
+
+데이터베이스의 구성은 mysql workbench참고.
+
+지금은 개발 단계 돌입
+
+기획안을 참고 후 임시 서버(로컬호스트)와 데이터 베이스 연동 후 
+백엔드 기본적 기능과 프론트 연결 
+디자인이 나오던 생각해서 만들던 하여 디자인에 쏟아붇기.
+
+
+배포는 aws 아키텍처 빌드 /
+
+
+개발(프론트는 연결만, 디자인은 추후)
+
+
+
+aws 기본적인 인프라스트럭처 설계 : vpc 만들고 위에 네트워크 올리고 서브넷 4개 나누고(web was)
+그다음 넷 게이트웨이 걸어주고 보안그룹, 라우팅테이블 걸어주고 ec2 생성 후 로드밸런서
+장착 후 데이터베이스 연결.
+
+라우팅 테이블은 네트워크와 연결. 보안그룹도 ssh http https 까지. os는 우분투 사용
+리눅스 환경에서 개발 되었으며 윈도우와 비슷함 하지만 다중 멀티 지원 간으
+
+iAm 계정으로 안전하게 시작 루트계정은 모든 권한이 있어 보안에 신경써야함.
+
+vpc를 생성 IPv4 CIDR 수동입력 10.0.0.0/20 블록 없음. 태넌시 기본값
+
+그다음 인터넷 게이트웨이를 생성 후 vpc에 연결
+
+서브넷 생성 - vpc를 만들어둔것으로 지정 하고 서브넷 가용 영역을 서울로.
+CIDR 블록은 10.0.0.0/0으로 지정
+또 다른 가용영역을 만들어 2개 10.0.16.0/20 < 2c임 영역
+
+10.0.32.0/20 < 2a was private
+
+10.0.48.0/20 < 2c was private
+
+라우팅 테이블 생성 - vpc는 만들어 두었던것으로. (이름 비슷하게 동일화 하는게 중요)
+후 서브넷과 연결 2a로 연결 라우팅 편집을 눌러 all 인터넷 게이트웨이와도 연결
+
+한번 더 2c로 연결 라우팅테이블 까지 서브넷과 인터넷 게이트웨이를 설정 후 연결.
+
+다음 보안그룹 생성 -> 인바운드 규칙 ssh, http, https 소스는 anywhere IPv4 마지막
+사용자 지정 TCP 3000포트
+
+아웃바운드는 모든 트래픽에 대해서. 보안그룹 생성이 완료됨.
+
+보안그룹 다시 생성 security group ssh, http, https 사용자지정 4040으로 설정
+
+Ec2 인스턴스 시작 os는 우분투. 인스턴스 유형은 원랜 t2마이크로 <프리티어
+키페어는 잘 저장 해놓아야 함.
+
+vpc를 연결해주고 서브넷도 퍼블렉 웹 으로 연결 , 기존 보안그룹 선택
+일반 보안그룹에 만들었던 보안, default 까지
+
+동일한 키페어로 두번째 인스턴스를 만듬.
+
+Ec2 연결 들어가면 콘솔창이 뜸. 
+
+RDS에 서브넷 그룹 생성. vpc 지정 후 가용영역 2개 선택 2a was(backend) 선택 후 생성
+파라미터 그룹 생성 파라미터 패밀리 버전 맞는거 생성. 옵션 그룹 생성 자신이 쓰는 db 연결
+데이터베이스 생성 템플릿은 원하는거 선택 원랜 프리티어 마스터 암호 8자 이상 지정
+인스턴스와 스토리지 확인 후 연결에 서브넷 그룹 설정. vpc 설정 편집에 들어가 dns설정 확인
+dns호스트 이름 활성화 체크 vpc 보안그룹에 다시 생성 
+인바운드 규칙에 똑같이 ssh, mysql/aurora 생성
+
+다시 RDS로 돌아와 퍼블릭 에세스 o 기존 보안그룹에 방금 생성한 db 보안그룹 연결 후 db생성
+mysql workbench에서 엔드포인트를 복붙해 보기
+
+Ec2 마다 연결을 할것임. 인스턴스 시작하여 콘솔창 띄운 뒤
+
+ws(front) 인스턴스
+sudu apt-get install git < git 패키지 다운
+sudu apt install git
+git --version 으로 버전 확인
+
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.37.2/install.sh | bash   적용
+source ~/.bashrc
+nvm list-remote 사용 가능한 노드 확인
+nvm install v18.16.0  <<이 버전 사용
+nvm user v18.16.0
+nvm list-remote 으로 버전 18.16.0 적용 되어있는지 확인
+node --version
+npm --version
+npx --version   << 다확인
+npm install -g pm2 로 설치
+npm install -g npm09.6.5 < 최신 버전으로 업뎃
+
+
+was 인스턴스
+was01 인스턴스 들어가서 jdk를 설치 해야함
+sudu apt install openjdk-17-jdk   -> yes 해줌
+java --version 으로 설치 확인
+echo $JAVA_HOME 없으면 환경변수 설정 해줘야 함
+cd /usr/lib/jvm ls
+cd ~ 로 다시 돌아오가ㅣ
+sudo vi /etc/environment 진입 후 y를 눌러 첫줄 밑에 JAVA_HOME="/usr/lib/jvm/java-17-openjdk-amd64" 이에스시 눌러
+클론 wq를 눌러 작성 종료
+source /etc/environment
+echo $JAVA_HOME 으로 jdk 환경변수 설정이 완료 되었는지 확인
+sudu apt install unzip 설치
+wget https://services.gradle.org/distributions/gradle-7.3.3-bin.zip 설치
+ls 로 설치 되었는지 확인
+
+우분투 계정이어야 함!
+sudu mkdir /otp/gradle
+sudu unzip -d /opt/gradle gradle-7.3.3-bin.zip
+echo "export PATH=$PATH:/opt/gradle/gradle-7.3.3/bin" | sudu tee -a /etc/profile.d/gradle.sh
+source /etc/profile.d/gradle.sh
+
+스프링 부트 빌드 그래들에 version에 스냅샷을 지워줌
+test파일을 삭제해줌. 다시 깃에 커밋 후 푸시
+
+git clone 깃헙 주소~ < 직접 타이핑 해야함
+cd 클론한 폴더/ 
+gradle clean build < 눌러 빌드 시작
+ls 를 눌러 빌드 폴더 생성된지 확인 
+cd build 안에 libs 있는지 확인 cd libs 로 들어와버전 확인
+java -jar 폴더이름-0.0.1.jar 로 실행하면 스프링부트 실행 됨. 밑에 아이피 주소로 접속해봄.
+
+-----------------
+mySQL 들어와 server에 DATA export로 스키마 선택 후 self-contained 파일 선택 후 위치
+아무대나 지정 후 추출.
+
+aws db로 들어와 server에 DATA import로 import from self-contained 파일 선택 후 
+default에 스키마 설정 후 스타트.
+
+스프링 app프로퍼티즈에 db소스를 엔드포인트로 바꿔줌 local이 아닌 aws로 아이디 비번도
+실행 되는지 확인
+
+깃 커밋
+
+-------------
+front
+api.ts 에 와보면 local호스트를 public ip로 바꿔줌 vsc에서 실행한번 해보고
+서버 닫은 후 npm i -g pm2
+pm2 ecosystem -> config.js에 apps밑줄에 name: '사용할 이름', 을 지정
+
+후 git 연동 
+----
+was 인스턴스로 와서
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.37.2/install.sh | bash
+source ~/ .bashrc
+nvm list-remote 로 버전 확인
+nvm install 18.16.0 버전 ㄱㄱ
+node --version
+npm --version 로 버전 확인 
+npm i -g pm2 설치
+
+npm install -g npm@9.6.5로 업뎃
+pm2 ecosystem 후 ls로 받아졌는지 확인
+vim ecosystem 으로 확인 apps 밑에 name 지정 스크립트에 'java' 로 바꿔주기
+밑에 args: ['-jar', 'jar 경로.. 적어주고']
+
+지울거 지우고 wq로 나가줌
+pm2 start ecosystem.config.js 로 실행
+pm2 log로 찍어보기
+
+front
+npm run build 로 빌드 해주기
+gitignore에 빌드를 주석처리
+커밋후 푸시 
+
+web 인스턴스를 열어 git clone ~깃주소 직접타이핑으로 직접 클론
+ls로 ㅍ촐더이름 확인 후 cd로 이동
+ls로 빌드폴더 있는지 확인
+sudu npm install -g serve
+
+nvmuse 18.16.0 < 버전 업뎃
+
+pm2 serve build 3000 
+pm2 status, pm2 log도 찍어보기 아이피에:3000번 포트로 들어가보기
+
+
+과금 나올때 삭제 방법
+
+RDS -> 데이터베이스 삭제 (스냅샷 안 남도록/ 프록시 서버 확인) -> 옵션그룹 삭제 ->
+파라미터 그룹 삭제 -> 서브넷 그룹 삭제
+EC2 -> 인스턴스 삭제
+VPC -> 보안그룹 삭제 -> 라우팅 테이블 삭제 -> 서브넷 삭제 -> 인터넷 게이트웨이 삭제 -> vpc 삭제
