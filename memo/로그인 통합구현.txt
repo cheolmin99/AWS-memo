@@ -1,0 +1,113 @@
+// Entity
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Entity
+@Table(name = "users")
+@Inheritance(strategy = InheritanceType.SINGLE_TABLE)
+@DiscriminatorColumn(name = "user_type", discriminatorType = DiscriminatorType.STRING)
+public abstract class UserEntity {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    protected int id;
+
+    protected String email;
+    protected String password;
+
+    // 공통되는 엔티티를 묶음
+}
+
+@Entity
+@DiscriminatorValue("actor")
+public class ActorEntity extends UserEntity {
+    protected String nickname;
+    protected String profile;
+
+    // 나머지 엔티티들을 나눠줌
+}
+
+@Entity
+@DiscriminatorValue("director")
+public class DirectorEntity extends UserEntity {
+    protected String phoneNumber;
+    protected String name;
+    protected String company;
+    protected String profile;
+
+    // 나머지 엔티티들을 나눠줌
+}
+
+// Repository
+public interface UserRepository extends JpaRepository<UserEntity, Integer> {
+    Optional<UserEntity> findByEmailAndPassword(String email, String password);
+}
+
+// Service
+@Service
+public class UserServiceImpl implements UserService {
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private TokenProvider tokenProvider;
+
+    @Override
+    public UserLoginResponseDto login(UserLoginDto loginDto) {
+        Optional<UserEntity> userOptional = userRepository.findByEmailAndPassword(loginDto.getEmail(), loginDto.getPassword());
+
+        if (userOptional.isEmpty()) {
+            return null;
+        }
+
+        UserEntity user = userOptional.get();
+
+        UserLoginResponseDto responseDto = new UserLoginResponseDto();
+        responseDto.setEmail(user.getEmail());
+        responseDto.setProfile(user.getProfile());
+
+        String token = tokenProvider.generateToken(user.getEmail());
+        responseDto.setToken(token);
+
+        // Set expiresIn (expiry time for the token)
+        responseDto.setExpiresIn(3600); // Example: 1 hour in seconds
+
+        return responseDto;
+    }
+}
+
+// Controller
+@RestController
+@RequestMapping("/api/login")
+public class LoginController {
+
+    @Autowired
+    private UserService userService;
+
+    @PostMapping
+    public ResponseEntity<UserLoginResponseDto> login(@RequestBody UserLoginDto loginDto) {
+        UserLoginResponseDto response = userService.login(loginDto);
+
+        if (response == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        return ResponseEntity.ok(response);
+    }
+}
+
+// Request DTO
+@Data
+public class UserLoginDto {
+    private String email;
+    private String password;
+}
+
+// Response DTO
+@Data
+public class UserLoginResponseDto {
+    private String email;
+    private String profile;
+    private String token;
+    private int expiresIn;  // Token expiry time in seconds
+}
